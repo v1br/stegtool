@@ -31,7 +31,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, detector):
         super().__init__()
-        self.setWindowTitle("STEGANALYSIS  ·  FORENSIC SCANNER")
+        self.setWindowTitle("LSB IMAGE SCANNER")
         self._detector = detector
         self._results: list[dict] = []
         self._build_ui()
@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(20, 0, 20, 0)
         layout.setSpacing(14)
 
-        title = QLabel("⬡  STEGANALYSIS")
+        title = QLabel("⬡  TOOL")
         title.setStyleSheet(f"""
             color:          {PALETTE["accent"]};
             font-family:    'Courier New', monospace;
@@ -88,7 +88,7 @@ class MainWindow(QMainWindow):
             font-weight:    bold;
             letter-spacing: 4px;
         """)
-        subtitle = QLabel("FORENSIC IMAGE SCANNER")
+        subtitle = QLabel("CHECK FOR LSB EMBEDDING")
         subtitle.setStyleSheet(f"""
             color:          {PALETTE["text_dim"]};
             font-family:    'Courier New', monospace;

@@ -1,5 +1,3 @@
 .venv
 .vscode
-reports
-results.zip
-payloads
+__pycache__
