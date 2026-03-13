@@ -31,7 +31,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, detector):
         super().__init__()
-        self.setWindowTitle("LSB IMAGE SCANNER")
+        self.setWindowTitle("IMAGE LSB TOOL")
         self._detector = detector
         self._results: list[dict] = []
         self._build_ui()
@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(20, 0, 20, 0)
         layout.setSpacing(14)
 
-        title = QLabel("⬡  TOOL")
+        title = QLabel("⬡ IMAGE LSB TOOL")
         title.setStyleSheet(f"""
             color:          {PALETTE["accent"]};
             font-family:    'Courier New', monospace;
