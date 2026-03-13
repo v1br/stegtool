@@ -2,6 +2,7 @@ import argparse
 
 from src.detector import SteganalysisTool
 from src.embedder import LSBEmbedder
+from src.extractor import LSBExtractor
 
 from src.analysis.reporting import (
     print_report,
@@ -35,6 +36,9 @@ def main():
 
     parser.add_argument("--analyze", action="store_true",
                         help="Analyze generated stego image")
+
+    # Extract argument
+    parser.add_argument("--extract", help="Extract hidden message from image")
 
     args = parser.parse_args()
 
@@ -78,6 +82,32 @@ def main():
         return
 
     # -----------------------------------------------------
+    # EXTRACT MODE
+    # -----------------------------------------------------
+
+    if args.extract:
+
+        extractor = LSBExtractor()
+
+        print("\nExtracting hidden message...\n")
+
+        try:
+            message = extractor.extract(args.extract)
+
+            if message:
+                print("Hidden message:")
+                print("--------------------------------")
+                print(message)
+                print("--------------------------------")
+            else:
+                print("No message extracted.")
+
+        except Exception as e:
+            print("Extraction failed:", e)
+
+        return
+
+    # -----------------------------------------------------
     # DETECTION MODE
     # -----------------------------------------------------
 
@@ -105,7 +135,7 @@ def main():
         export_results(results)
 
     else:
-        print("Specify --image, --folder, or --embed")
+        print("Specify --image, --folder, --embed, or --extract")
 
 
 if __name__ == "__main__":
