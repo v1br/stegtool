@@ -25,7 +25,7 @@ def start_gui() -> None:
     app.setPalette(_build_dark_palette())
 
     window = MainWindow(detector=SteganalysisTool())
-    window.resize(1100, 720)
+    window.resize(800, 600)
     window.show()
     sys.exit(app.exec())
 

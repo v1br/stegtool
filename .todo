@@ -1,4 +1,11 @@
-python cli.py --embed --input 1.pgm --output s1.png --text "secret message" --payload 0.5
-python cli.py --embed --input 1.pgm --output s1.png --text "secret message" --payload 0.5 --analyze
-python cli.py --image s1.png
-python cli.py --extract s1.png
+Embed & analyze:
+>> python cli.py --embed --input 1.pgm --output s1.png --text "secret message" --payload 0.5 --analyze
+
+Detect in image:
+>> python cli.py --image s1.png
+
+Extract from image:
+>> python cli.py --extract s1.png
+
+Recursive convert pgm to png
+>> python convert_pgm_dataset.py --input bossbase --output bossbase_png
