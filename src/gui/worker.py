@@ -1,13 +1,9 @@
 """
-ScanWorker — runs the detector over a folder in a background QThread.
+Workers — background QThread jobs for scan, embed, and extract operations.
 
-Responsibilities
-----------------
-* Enumerate image files in a directory.
-* Call detector.analyze_image() for each file.
-* Emit progress updates and a final sorted result list.
-* Normalise raw detector labels (COVER → CLEAN) before emitting results,
-  so the rest of the UI never has to deal with COVER.
+ScanWorker   — enumerate + detect over a folder of images.
+EmbedWorker  — embed a text payload then run the detector on the result.
+ExtractWorker — pull a hidden LSB payload out of a single image.
 """
 
 import os
@@ -18,6 +14,8 @@ from src.gui.constants import Label
 
 _IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".pgm")
 
+
+# ── Scan ─────────────────────────────────────────────────────────────────────
 
 class ScanWorker(QObject):
     """Runs in a QThread; communicates back via Qt signals."""
@@ -45,8 +43,6 @@ class ScanWorker(QObject):
         results.sort(key=lambda r: r["probability"], reverse=True)
         self.finished.emit(results)
 
-    # ── Helpers ──────────────────────────────
-
     def _collect_images(self) -> list[str]:
         try:
             entries = sorted(os.listdir(self._folder))
@@ -57,3 +53,80 @@ class ScanWorker(QObject):
             for f in entries
             if f.lower().endswith(_IMAGE_EXTENSIONS)
         ]
+
+
+# ── Embed ─────────────────────────────────────────────────────────────────────
+
+class EmbedWorker(QObject):
+    """
+    Embeds a text payload into an image, saves to output_path,
+    then runs the detector on the stego result.
+
+    Signals
+    -------
+    finished(stego_path, result | None)
+    error(message)
+    """
+
+    finished = Signal(str, object)   # (stego_path, detection_result | None)
+    error    = Signal(str)
+
+    def __init__(
+        self,
+        embedder,
+        detector,
+        image_path:   str,
+        text:         str,
+        payload_bpp:  float,
+        output_path:  str,
+    ):
+        super().__init__()
+        self._embedder    = embedder
+        self._detector    = detector
+        self._image_path  = image_path
+        self._text        = text
+        self._payload_bpp = payload_bpp
+        self._output_path = output_path
+
+    def run(self) -> None:
+        try:
+            self._embedder.embed(
+                self._image_path,
+                self._output_path,
+                self._text,
+                self._payload_bpp,
+            )
+            result = self._detector.analyze_image(self._output_path)
+            if result:
+                result["label"] = str(Label.normalise(result["label"]))
+            self.finished.emit(self._output_path, result)
+        except Exception as exc:
+            self.error.emit(str(exc))
+
+
+# ── Extract ───────────────────────────────────────────────────────────────────
+
+class ExtractWorker(QObject):
+    """
+    Extracts a hidden LSB text payload from a single image.
+
+    Signals
+    -------
+    finished(text)   — empty string if no message found
+    error(message)
+    """
+
+    finished = Signal(str)
+    error    = Signal(str)
+
+    def __init__(self, extractor, image_path: str):
+        super().__init__()
+        self._extractor  = extractor
+        self._image_path = image_path
+
+    def run(self) -> None:
+        try:
+            text = self._extractor.extract(self._image_path)
+            self.finished.emit(text or "")
+        except Exception as exc:
+            self.error.emit(str(exc))

@@ -8,4 +8,4 @@ Extract from image:
 >> python cli.py --extract s1.png
 
 Recursive convert pgm to png
->> python convert_pgm_dataset.py --input bossbase --output bossbase_png
+>> python scripts/png.py --input images_src --output images

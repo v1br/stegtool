@@ -3,7 +3,10 @@ MainWindow — application shell.
 
 Responsibilities
 ----------------
-* Lay out the top-level UI (header, stats bar, list panel, detail panel).
+* Lay out the top-level UI: shared header + tabbed body.
+* Tab 0 (DETECT)  — folder scan with results list + detail panel.
+* Tab 1 (EMBED)   — single-image LSB embedding + side-by-side comparison + verdict.
+* Tab 2 (EXTRACT) — single-image LSB extraction + message display.
 * Orchestrate the scan flow (open dialog → spin up worker → handle results).
 * Update summary tiles and status bar.
 
@@ -15,29 +18,32 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QFileDialog, QLabel, QListWidget,
     QListWidgetItem, QProgressBar, QSplitter, QFrame,
-    QStatusBar, QSizePolicy,
+    QStatusBar, QSizePolicy, QTabWidget,
 )
 from PySide6.QtCore import Qt, QThread, QSize
 
-from src.gui.palette    import PALETTE
-from src.gui.constants  import Label
-from src.gui.worker     import ScanWorker
-from src.gui    import (
+from src.gui.palette   import PALETTE
+from src.gui.constants import Label
+from src.gui.worker    import ScanWorker
+from src.gui import (
     ScanLineWidget, ResultRowWidget, StatTile, DetailPanel,
+    EmbedTab, ExtractTab,
 )
 
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, detector):
+    def __init__(self, detector, embedder, extractor):
         super().__init__()
         self.setWindowTitle("IMAGE LSB TOOL")
-        self._detector = detector
+        self._detector  = detector
+        self._embedder  = embedder
+        self._extractor = extractor
         self._results: list[dict] = []
         self._build_ui()
         self._apply_global_styles()
 
-    # ── UI construction ──────────────────────
+    # ── UI construction ──────────────────────────────────────────────
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -48,12 +54,13 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self._build_header())
 
-        self._scan_line = ScanLineWidget()
-        self._scan_line.hide()
-        layout.addWidget(self._scan_line)
-
-        layout.addWidget(self._build_stats_bar())
-        layout.addWidget(self._build_content_splitter(), stretch=1)
+        # ── Tab widget ──
+        self._tabs = QTabWidget()
+        self._tabs.setObjectName("MainTabs")
+        self._tabs.addTab(self._build_detect_tab(),               "  DETECT  ")
+        self._tabs.addTab(EmbedTab(self._embedder, self._detector), "  EMBED   ")
+        self._tabs.addTab(ExtractTab(self._extractor),             "  EXTRACT ")
+        layout.addWidget(self._tabs, stretch=1)
 
         self._status_bar = QStatusBar()
         self._status_bar.setStyleSheet(f"""
@@ -70,6 +77,8 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("Ready — select a folder to begin analysis")
 
         self.setCentralWidget(root)
+
+    # ── Shared header (title only) ───────────────────────────────────
 
     def _build_header(self) -> QWidget:
         header = QWidget()
@@ -88,12 +97,62 @@ class MainWindow(QMainWindow):
             font-weight:    bold;
             letter-spacing: 4px;
         """)
-        subtitle = QLabel("CHECK FOR LSB EMBEDDING")
+
+        subtitle = QLabel("Tool for working with simple LSB payloads")
         subtitle.setStyleSheet(f"""
             color:          {PALETTE["text_dim"]};
             font-family:    'Courier New', monospace;
             font-size:      10px;
             letter-spacing: 3px;
+        """)
+
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        layout.addStretch()
+        return header
+
+    # ── Detect tab ───────────────────────────────────────────────────
+
+    def _build_detect_tab(self) -> QWidget:
+        detect = QWidget()
+        detect.setObjectName("DetectTab")
+
+        layout = QVBoxLayout(detect)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        layout.addWidget(self._build_scan_bar())
+
+        self._scan_line = ScanLineWidget()
+        self._scan_line.hide()
+        layout.addWidget(self._scan_line)
+
+        layout.addWidget(self._build_stats_bar())
+        layout.addWidget(self._build_content_splitter(), stretch=1)
+        return detect
+
+    def _build_scan_bar(self) -> QWidget:
+        """Thin bar hosting the SCAN FOLDER button and a slim progress bar."""
+        bar = QWidget()
+        bar.setFixedHeight(46)
+        bar.setObjectName("ScanBar")
+        bar.setStyleSheet(f"""
+            QWidget#ScanBar {{
+                background:    {PALETTE["surface"]};
+                border-bottom: 1px solid {PALETTE["border"]};
+            }}
+        """)
+
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(16, 0, 16, 0)
+        layout.setSpacing(12)
+
+        desc = QLabel("Scan a folder of images for LSB steganography")
+        desc.setStyleSheet(f"""
+            color:          {PALETTE["text_dim"]};
+            font-family:    'Courier New', monospace;
+            font-size:      10px;
+            letter-spacing: 1px;
         """)
 
         self._scan_button = QPushButton("▶  SCAN FOLDER")
@@ -102,11 +161,9 @@ class MainWindow(QMainWindow):
         self._scan_button.setObjectName("ScanButton")
         self._scan_button.clicked.connect(self._select_and_scan)
 
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-        layout.addStretch()
+        layout.addWidget(desc, stretch=1)
         layout.addWidget(self._scan_button)
-        return header
+        return bar
 
     def _build_stats_bar(self) -> QWidget:
         bar = QWidget()
@@ -230,7 +287,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._detail_panel, stretch=1)
         return panel
 
-    # ── Scan orchestration ───────────────────
+    # ── Scan orchestration ───────────────────────────────────────────
 
     def _select_and_scan(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, "Select Folder to Scan")
@@ -268,7 +325,6 @@ class MainWindow(QMainWindow):
         self._set_scanning_state(False)
         self._progress.setValue(100)
 
-        # Count by label (labels are already normalised by the worker)
         counts = {label: 0 for label in (Label.STEGO, Label.SUSPICIOUS, Label.CLEAN)}
         for r in results:
             if r["label"] in counts:
@@ -299,7 +355,9 @@ class MainWindow(QMainWindow):
             f"{counts[Label.CLEAN]} CLEAN"
             if results else ""
         )
-        self._status_bar.showMessage(f"Scan complete — {n} image{'s' if n != 1 else ''} analyzed{threat}")
+        self._status_bar.showMessage(
+            f"Scan complete — {n} image{'s' if n != 1 else ''} analyzed{threat}"
+        )
 
     def _on_result_clicked(self, item: QListWidgetItem) -> None:
         self._display_result(self._results_list.row(item))
@@ -309,7 +367,7 @@ class MainWindow(QMainWindow):
         self._detail_panel.show_image(result["file"])
         self._detail_panel.show_result(result)
 
-    # ── Helpers ──────────────────────────────
+    # ── Helpers ──────────────────────────────────────────────────────
 
     def _set_scanning_state(self, scanning: bool) -> None:
         self._scan_button.setEnabled(not scanning)
@@ -324,7 +382,7 @@ class MainWindow(QMainWindow):
     def _all_tiles(self):
         return (self._tile_total, self._tile_stego, self._tile_suspicious, self._tile_clean)
 
-    # ── Global stylesheet ────────────────────
+    # ── Global stylesheet ────────────────────────────────────────────
 
     def _apply_global_styles(self) -> None:
         self.setStyleSheet(f"""
@@ -332,7 +390,7 @@ class MainWindow(QMainWindow):
             background-color: {PALETTE["bg"]};
         }}
         QWidget#Header {{
-            background:   {PALETTE["surface"]};
+            background:    {PALETTE["surface"]};
             border-bottom: 1px solid {PALETTE["border"]};
         }}
         QWidget#StatsBar {{
@@ -348,12 +406,46 @@ class MainWindow(QMainWindow):
             border-bottom: 1px solid {PALETTE["border"]};
         }}
         QWidget#LeftPanel {{
-            background:   {PALETTE["bg"]};
-            border-right:  1px solid {PALETTE["border"]};
+            background:  {PALETTE["bg"]};
+            border-right: 1px solid {PALETTE["border"]};
         }}
         QWidget#RightPanel {{
             background: {PALETTE["surface"]};
         }}
+        QWidget#DetectTab {{
+            background: {PALETTE["bg"]};
+        }}
+
+        /* ── Tab bar ── */
+        QTabWidget#MainTabs::pane {{
+            border:     none;
+            background: {PALETTE["bg"]};
+        }}
+        QTabBar::tab {{
+            background:     {PALETTE["surface"]};
+            color:          {PALETTE["text_dim"]};
+            font-family:    'Courier New', monospace;
+            font-size:      10px;
+            letter-spacing: 2px;
+            padding:        9px 18px;
+            border:         none;
+            border-bottom:  2px solid transparent;
+            min-width:      80px;
+        }}
+        QTabBar::tab:selected {{
+            color:         {PALETTE["accent"]};
+            border-bottom: 2px solid {PALETTE["accent"]};
+            background:    {PALETTE["surface2"]};
+        }}
+        QTabBar::tab:hover:!selected {{
+            color:      {PALETTE["text"]};
+            background: {PALETTE["surface2"]};
+        }}
+        QTabWidget::tab-bar {{
+            border-bottom: 1px solid {PALETTE["border"]};
+        }}
+
+        /* ── Results list ── */
         QListWidget#ResultsList {{
             background: {PALETTE["bg"]};
             border:     none;
@@ -371,6 +463,8 @@ class MainWindow(QMainWindow):
         QListWidget#ResultsList::item:hover {{
             background: {PALETTE["surface"]};
         }}
+
+        /* ── Slim progress ── */
         QProgressBar#SlimProgress {{
             background: {PALETTE["surface"]};
             border:     none;
@@ -381,6 +475,8 @@ class MainWindow(QMainWindow):
                 stop:0 {PALETTE["accent_dim"]}, stop:1 {PALETTE["accent"]}
             );
         }}
+
+        /* ── Scan button ── */
         QPushButton#ScanButton {{
             background:     transparent;
             color:          {PALETTE["accent"]};
@@ -392,18 +488,11 @@ class MainWindow(QMainWindow):
             letter-spacing: 2px;
             padding:        0px 14px;
         }}
-        QPushButton#ScanButton:hover {{
-            background: {PALETTE["accent_dim"]};
-            color:      #fff;
-        }}
-        QPushButton#ScanButton:pressed {{
-            background: {PALETTE["accent"]};
-            color:      {PALETTE["bg"]};
-        }}
-        QPushButton#ScanButton:disabled {{
-            color:        {PALETTE["text_dim"]};
-            border-color: {PALETTE["border"]};
-        }}
+        QPushButton#ScanButton:hover   {{ background: {PALETTE["accent_dim"]}; color: #fff; }}
+        QPushButton#ScanButton:pressed {{ background: {PALETTE["accent"]};     color: {PALETTE["bg"]}; }}
+        QPushButton#ScanButton:disabled {{ color: {PALETTE["text_dim"]}; border-color: {PALETTE["border"]}; }}
+
+        /* ── Scrollbars (global) ── */
         QScrollBar:vertical {{
             background:    {PALETTE["bg"]};
             width:         6px;
@@ -413,7 +502,5 @@ class MainWindow(QMainWindow):
             background:    {PALETTE["border_hi"]};
             border-radius: 3px;
         }}
-        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-            height: 0px;
-        }}
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
         """)

@@ -17,6 +17,8 @@ from PySide6.QtGui import QPalette, QColor
 from src.gui.palette     import PALETTE
 from src.gui.main_window import MainWindow
 from src.detector        import SteganalysisTool
+from src.embedder        import LSBEmbedder
+from src.extractor       import LSBExtractor
 
 
 def start_gui() -> None:
@@ -24,7 +26,7 @@ def start_gui() -> None:
     app.setStyle("Fusion")
     app.setPalette(_build_dark_palette())
 
-    window = MainWindow(detector=SteganalysisTool())
+    window = MainWindow(detector=SteganalysisTool(), embedder=LSBEmbedder(), extractor=LSBExtractor())
     window.resize(800, 600)
     window.show()
     sys.exit(app.exec())
