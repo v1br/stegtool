@@ -130,3 +130,46 @@ class ExtractWorker(QObject):
             self.finished.emit(text or "")
         except Exception as exc:
             self.error.emit(str(exc))
+
+
+# ── Analysis ──────────────────────────────────────────────────────────────────
+
+class AnalysisWorker(QObject):
+    """
+    Runs full feature extraction on one or two images so the
+    FeaturesTab can compare cover vs stego feature vectors.
+
+    Emits finished(cover_data, stego_data) where each data dict has keys:
+        spam, glcm, entropy, features, label, probability, model_probabilities
+    stego_data is None when only one image path is provided.
+
+    Signals
+    -------
+    finished(cover_data, stego_data | None)
+    error(message)
+    """
+
+    finished = Signal(object, object)
+    error    = Signal(str)
+
+    def __init__(self, detector, cover_path: str, stego_path: str = None):
+        super().__init__()
+        self._detector   = detector
+        self._cover_path = cover_path
+        self._stego_path = stego_path
+
+    def run(self) -> None:
+        try:
+            cover = self._detector.analyze_image(self._cover_path)
+            if cover:
+                cover["label"] = str(Label.normalise(cover["label"]))
+
+            stego = None
+            if self._stego_path:
+                stego = self._detector.analyze_image(self._stego_path)
+                if stego:
+                    stego["label"] = str(Label.normalise(stego["label"]))
+
+            self.finished.emit(cover, stego)
+        except Exception as exc:
+            self.error.emit(str(exc))

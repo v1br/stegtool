@@ -27,7 +27,7 @@ from src.gui.constants import Label
 from src.gui.worker    import ScanWorker
 from src.gui import (
     ScanLineWidget, ResultRowWidget, StatTile, DetailPanel,
-    EmbedTab, ExtractTab,
+    EmbedTab, ExtractTab, FeaturesTab, CalibrationTab,
 )
 
 
@@ -57,9 +57,12 @@ class MainWindow(QMainWindow):
         # ── Tab widget ──
         self._tabs = QTabWidget()
         self._tabs.setObjectName("MainTabs")
-        self._tabs.addTab(self._build_detect_tab(),               "  DETECT  ")
-        self._tabs.addTab(EmbedTab(self._embedder, self._detector), "  EMBED   ")
-        self._tabs.addTab(ExtractTab(self._extractor),             "  EXTRACT ")
+        self._tabs.addTab(self._build_detect_tab(),                "  DETECT      ")
+        self._calib_tab = CalibrationTab()
+        self._tabs.addTab(self._calib_tab,                          "  CALIBRATION ")
+        self._tabs.addTab(EmbedTab(self._embedder, self._detector), "  EMBED       ")
+        self._tabs.addTab(ExtractTab(self._extractor),              "  EXTRACT     ")
+        self._tabs.addTab(FeaturesTab(self._detector),              "  FEATURES    ")
         layout.addWidget(self._tabs, stretch=1)
 
         self._status_bar = QStatusBar()
@@ -98,7 +101,7 @@ class MainWindow(QMainWindow):
             letter-spacing: 4px;
         """)
 
-        subtitle = QLabel("Tool for working with LSB payloads")
+        subtitle = QLabel("Useful insights for LSB payloads.")
         subtitle.setStyleSheet(f"""
             color:          {PALETTE["text_dim"]};
             font-family:    'Courier New', monospace;
@@ -132,7 +135,7 @@ class MainWindow(QMainWindow):
         return detect
 
     def _build_scan_bar(self) -> QWidget:
-        """Thin bar hosting the SCAN FOLDER button and a slim progress bar."""
+        """Thin bar hosting the SCAN FOLDER button, export button, and progress."""
         bar = QWidget()
         bar.setFixedHeight(46)
         bar.setObjectName("ScanBar")
@@ -155,6 +158,13 @@ class MainWindow(QMainWindow):
             letter-spacing: 1px;
         """)
 
+        self._export_btn = QPushButton("↓  EXPORT CSV")
+        self._export_btn.setFixedSize(148, 34)
+        self._export_btn.setCursor(Qt.PointingHandCursor)
+        self._export_btn.setObjectName("ExportButton")
+        self._export_btn.setEnabled(False)
+        self._export_btn.clicked.connect(self._export_csv)
+
         self._scan_button = QPushButton("▶  SCAN FOLDER")
         self._scan_button.setFixedSize(160, 34)
         self._scan_button.setCursor(Qt.PointingHandCursor)
@@ -162,6 +172,7 @@ class MainWindow(QMainWindow):
         self._scan_button.clicked.connect(self._select_and_scan)
 
         layout.addWidget(desc, stretch=1)
+        layout.addWidget(self._export_btn)
         layout.addWidget(self._scan_button)
         return bar
 
@@ -300,6 +311,7 @@ class MainWindow(QMainWindow):
         self._set_scanning_state(True)
         self._reset_stats()
         self._progress.setValue(0)
+        self._export_btn.setEnabled(False)
         self._status_bar.showMessage(f"Scanning  {folder}")
 
         self._thread = QThread()
@@ -347,6 +359,7 @@ class MainWindow(QMainWindow):
         else:
             self._results_list.setCurrentRow(0)
             self._display_result(0)
+            self._export_btn.setEnabled(True)
 
         n = len(results)
         threat = (
@@ -358,6 +371,7 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage(
             f"Scan complete — {n} image{'s' if n != 1 else ''} analyzed{threat}"
         )
+        self._calib_tab.refresh(results)
 
     def _on_result_clicked(self, item: QListWidgetItem) -> None:
         self._display_result(self._results_list.row(item))
@@ -366,6 +380,61 @@ class MainWindow(QMainWindow):
         result = self._results[index]
         self._detail_panel.show_image(result["file"])
         self._detail_panel.show_result(result)
+
+    def _export_csv(self) -> None:
+        """Write the current scan results to a CSV file chosen by the user."""
+        if not self._results:
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export Results as CSV",
+            "scan_results.csv",
+            "CSV Files (*.csv);;All Files (*)",
+        )
+        if not path:
+            return
+
+        import csv, os
+        try:
+            with open(path, "w", newline="", encoding="utf-8") as fh:
+                writer = csv.writer(fh)
+                # Header
+                writer.writerow([
+                    "filename", "label", "probability",
+                    "estimated_payload_bpp", "model_consensus",
+                    "entropy",
+                    "glcm_contrast", "glcm_correlation",
+                    "glcm_energy", "glcm_homogeneity",
+                    "model_prob_0.1", "model_prob_0.2", "model_prob_0.3",
+                    "model_prob_0.4", "model_prob_0.5",
+                    "width", "height",
+                ])
+                for r in self._results:
+                    mp = r.get("model_probabilities", {})
+                    glcm = r.get("glcm", [0, 0, 0, 0])
+                    writer.writerow([
+                        os.path.basename(r["file"]),
+                        r["label"],
+                        f"{r['probability']:.6f}",
+                        r.get("estimated_payload", ""),
+                        r.get("consensus", ""),
+                        f"{r.get('entropy', ''):.6f}",
+                        f"{glcm[0]:.6f}", f"{glcm[1]:.6f}",
+                        f"{glcm[2]:.6f}", f"{glcm[3]:.6f}",
+                        f"{mp.get('0.1', ''):.6f}" if mp.get("0.1") is not None else "",
+                        f"{mp.get('0.2', ''):.6f}" if mp.get("0.2") is not None else "",
+                        f"{mp.get('0.3', ''):.6f}" if mp.get("0.3") is not None else "",
+                        f"{mp.get('0.4', ''):.6f}" if mp.get("0.4") is not None else "",
+                        f"{mp.get('0.5', ''):.6f}" if mp.get("0.5") is not None else "",
+                        r.get("width", ""),
+                        r.get("height", ""),
+                    ])
+            n = len(self._results)
+            self._status_bar.showMessage(
+                f"Exported {n} result{'s' if n != 1 else ''} → {os.path.basename(path)}"
+            )
+        except Exception as exc:
+            self._status_bar.showMessage(f"Export failed: {exc}")
 
     # ── Helpers ──────────────────────────────────────────────────────
 
@@ -475,6 +544,21 @@ class MainWindow(QMainWindow):
                 stop:0 {PALETTE["accent_dim"]}, stop:1 {PALETTE["accent"]}
             );
         }}
+
+        QPushButton#ExportButton {{
+            background:     transparent;
+            color:          {PALETTE["green"]};
+            border:         1px solid {PALETTE["green"]};
+            border-radius:  4px;
+            font-family:    'Courier New', monospace;
+            font-size:      11px;
+            font-weight:    bold;
+            letter-spacing: 2px;
+            padding:        0px 14px;
+        }}
+        QPushButton#ExportButton:hover   {{ background: {PALETTE["green_dim"]}; color: #fff; }}
+        QPushButton#ExportButton:pressed {{ background: {PALETTE["green"]};     color: {PALETTE["bg"]}; }}
+        QPushButton#ExportButton:disabled {{ color: {PALETTE["text_dim"]}; border-color: {PALETTE["border"]}; }}
 
         /* ── Scan button ── */
         QPushButton#ScanButton {{
