@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, detector, embedder, extractor):
         super().__init__()
-        self.setWindowTitle("IMAGE LSB TOOL")
+        self.setWindowTitle("Image Stegtool")
         self._detector  = detector
         self._embedder  = embedder
         self._extractor = extractor
@@ -89,7 +89,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(20, 0, 20, 0)
         layout.setSpacing(14)
 
-        title = QLabel("⬡ IMAGE LSB TOOL")
+        title = QLabel("⬡ IMAGE STEGTOOL")
         title.setStyleSheet(f"""
             color:          {PALETTE["accent"]};
             font-family:    'Courier New', monospace;
@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
             letter-spacing: 4px;
         """)
 
-        subtitle = QLabel("Tool for working with simple LSB payloads")
+        subtitle = QLabel("Tool for working with LSB payloads")
         subtitle.setStyleSheet(f"""
             color:          {PALETTE["text_dim"]};
             font-family:    'Courier New', monospace;
@@ -147,7 +147,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 0, 16, 0)
         layout.setSpacing(12)
 
-        desc = QLabel("Scan a folder of images for LSB steganography")
+        desc = QLabel("Scan a folder of images for LSB detection.")
         desc.setStyleSheet(f"""
             color:          {PALETTE["text_dim"]};
             font-family:    'Courier New', monospace;
