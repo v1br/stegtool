@@ -1,8 +1,3 @@
-"""
-Centralized color palette and label-color helpers.
-All UI colors are defined here — nothing is hard-coded elsewhere.
-"""
-
 from __future__ import annotations
 
 PALETTE: dict[str, str] = {

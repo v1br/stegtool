@@ -1,8 +1,3 @@
-"""
-DetailPanel — the right-hand pane that shows the selected image and
-              a breakdown of the detector's output for that image.
-"""
-
 import os
 
 from PySide6.QtWidgets import (

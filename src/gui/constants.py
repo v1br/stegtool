@@ -1,10 +1,3 @@
-"""
-Prediction label constants.
-
-Using an Enum eliminates the ~20 scattered magic strings ("STEGO", "COVER", …)
-and makes exhaustiveness checking and refactoring safe.
-"""
-
 from enum import StrEnum
 
 

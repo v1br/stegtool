@@ -1,5 +1,3 @@
-"""Animated horizontal scan line shown while a scan is in progress."""
-
 from PySide6.QtWidgets import QWidget
 from PySide6.QtGui import QPainter, QLinearGradient, QBrush, QColor
 from PySide6.QtCore import QTimer, Qt

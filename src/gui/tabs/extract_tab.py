@@ -1,20 +1,3 @@
-"""
-ExtractTab — UI for LSB text extraction.
-
-Layout
-------
-  ┌─ Control bar ─────────────────────────────────────────────────────┐
-  │  [SELECT IMAGE]  path/to/image.png                   [EXTRACT]   │
-  └───────────────────────────────────────────────────────────────────┘
-  ┌─ IMAGE PREVIEW ──────────────┬─ EXTRACTED MESSAGE ───────────────┐
-  │                              │                                    │
-  │       (preview)              │  extracted text here…              │
-  │                              │                                    │
-  │                              ├────────────────────────────────────┤
-  │                              │ status: N characters extracted     │
-  └──────────────────────────────┴────────────────────────────────────┘
-"""
-
 import os
 
 from PySide6.QtWidgets import (

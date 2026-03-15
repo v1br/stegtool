@@ -1,10 +1,3 @@
-"""
-Small indicator widgets:
-
-  ThreatBadge  — coloured pill label showing STEGO / SUSPICIOUS / CLEAN
-  ProbBar      — mini filled bar representing a probability value
-"""
-
 from PySide6.QtWidgets import QLabel, QWidget
 from PySide6.QtGui import QPainter, QColor
 from PySide6.QtCore import Qt

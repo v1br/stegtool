@@ -1,5 +1,3 @@
-"""StatTile — a summary card shown in the stats bar."""
-
 from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel
 from PySide6.QtCore import Qt
 

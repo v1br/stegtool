@@ -1,11 +1,3 @@
-"""
-Workers — background QThread jobs for scan, embed, and extract operations.
-
-ScanWorker   — enumerate + detect over a folder of images.
-EmbedWorker  — embed a text payload then run the detector on the result.
-ExtractWorker — pull a hidden LSB payload out of a single image.
-"""
-
 import os
 
 from PySide6.QtCore import QObject, Signal

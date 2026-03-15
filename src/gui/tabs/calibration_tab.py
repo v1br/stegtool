@@ -1,28 +1,3 @@
-"""
-CalibrationTab — confidence calibration visualisation across payload sizes.
-
-Shows how the model's probability score distributes across all scanned images
-for each payload-size model (0.1 – 0.5 bpp).  Populated automatically from
-the most recent DETECT scan results; no extra user input required.
-
-Layout
-──────
-  ┌─ Info bar ─────────────────────────────────────────────────────────────────┐
-  │  "Showing calibration data for N images from last scan"     [REFRESH]      │
-  └────────────────────────────────────────────────────────────────────────────┘
-  ┌─ Per-model strip (one row per bpp) ────────────────────────────────────────┐
-  │  0.1 bpp  [distribution bar]  mean: 0.xx  stego: N  cover: N              │
-  │  0.2 bpp  …                                                                │
-  │  …                                                                          │
-  └────────────────────────────────────────────────────────────────────────────┘
-  ┌─ Final score distribution ─────────────────────────────────────────────────┐
-  │  Histogram (20 bins) of aggregate probabilities colour-coded by label      │
-  └────────────────────────────────────────────────────────────────────────────┘
-  ┌─ Score vs payload heatmap ─────────────────────────────────────────────────┐
-  │  Each row = one bpp model, each column = a probability bucket              │
-  └────────────────────────────────────────────────────────────────────────────┘
-"""
-
 from __future__ import annotations
 
 import math

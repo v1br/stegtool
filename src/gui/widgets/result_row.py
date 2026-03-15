@@ -1,5 +1,3 @@
-"""ResultRowWidget — one row in the scan-results list."""
-
 import os
 
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QSizePolicy

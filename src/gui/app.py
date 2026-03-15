@@ -1,14 +1,3 @@
-"""
-app.py — application entry point.
-
-Responsibilities
-----------------
-* Create the QApplication.
-* Apply the dark Fusion palette to native Qt elements (dialogs, scrollbars, etc.).
-* Instantiate the detector and main window.
-* Start the event loop.
-"""
-
 import sys
 
 from PySide6.QtWidgets import QApplication

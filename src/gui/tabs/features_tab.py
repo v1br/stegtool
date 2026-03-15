@@ -1,25 +1,3 @@
-"""
-FeaturesTab — side-by-side feature vector comparison for cover vs stego.
-
-Layout
-------
-  ┌─ Control bar ───────────────────────────────────────────────────────────┐
-  │  COVER [SELECT]  path…     STEGO [SELECT]  path…          [ANALYSE]    │
-  └─────────────────────────────────────────────────────────────────────────┘
-  ┌─ GLCM (4 values) ─────────────────────────────────────────────────────┐
-  │  Contrast  Correlation  Energy  Homogeneity  — paired bar chart        │
-  └───────────────────────────────────────────────────────────────────────┘
-  ┌─ LSB ENTROPY ─────────────────────────────────────────────────────────┐
-  │  Single gauge / bar pair                                               │
-  └───────────────────────────────────────────────────────────────────────┘
-  ┌─ SPAM STATISTICS (196 values — entropy + std dev per sub-matrix) ────┐
-  │  H  V  D1  D2  — entropy chart then std-dev chart                    │
-  └───────────────────────────────────────────────────────────────────────┘
-  ┌─ DETECTION SCORES ────────────────────────────────────────────────────┐
-  │  Per-model probability bars + final score                              │
-  └───────────────────────────────────────────────────────────────────────┘
-"""
-
 import numpy as np
 
 from PySide6.QtWidgets import (
