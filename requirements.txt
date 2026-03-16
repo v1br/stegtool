@@ -5,3 +5,5 @@ imageio
 joblib
 opencv-python
 PySide6
+ipykernel
+jupyter

@@ -1,3 +1,19 @@
+"""
+MainWindow — application shell.
+
+Responsibilities
+----------------
+* Lay out the top-level UI: shared header + tabbed body.
+* Tab 0 (DETECT)  — folder scan with results list + detail panel.
+* Tab 1 (EMBED)   — single-image LSB embedding + side-by-side comparison + verdict.
+* Tab 2 (EXTRACT) — single-image LSB extraction + message display.
+* Orchestrate the scan flow (open dialog → spin up worker → handle results).
+* Update summary tiles and status bar.
+
+Widget implementation details live in src/gui/widgets/.
+Threading lives in src/gui/worker.py.
+"""
+
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QFileDialog, QLabel, QListWidget,
@@ -85,7 +101,7 @@ class MainWindow(QMainWindow):
             letter-spacing: 4px;
         """)
 
-        subtitle = QLabel("Useful insights for LSB payloads.")
+        subtitle = QLabel("Tool for working with LSB payloads.")
         subtitle.setStyleSheet(f"""
             color:          {PALETTE["text_dim"]};
             font-family:    'Courier New', monospace;
@@ -134,7 +150,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 0, 16, 0)
         layout.setSpacing(12)
 
-        desc = QLabel("Scan a folder of images for LSB detection.")
+        desc = QLabel("Scan a folder of images for LSB steganography")
         desc.setStyleSheet(f"""
             color:          {PALETTE["text_dim"]};
             font-family:    'Courier New', monospace;
@@ -142,12 +158,12 @@ class MainWindow(QMainWindow):
             letter-spacing: 1px;
         """)
 
-        self._export_btn = QPushButton("↓  EXPORT CSV")
+        self._export_btn = QPushButton("↓  EXPORT PDF")
         self._export_btn.setFixedSize(148, 34)
         self._export_btn.setCursor(Qt.PointingHandCursor)
         self._export_btn.setObjectName("ExportButton")
         self._export_btn.setEnabled(False)
-        self._export_btn.clicked.connect(self._export_csv)
+        self._export_btn.clicked.connect(self._export_pdf)
 
         self._scan_button = QPushButton("▶  SCAN FOLDER")
         self._scan_button.setFixedSize(160, 34)
@@ -289,6 +305,7 @@ class MainWindow(QMainWindow):
         if not folder:
             return
 
+        self._last_scan_folder = folder
         self._results_list.clear()
         self._empty_label.hide()
         self._detail_panel.clear()
@@ -365,60 +382,40 @@ class MainWindow(QMainWindow):
         self._detail_panel.show_image(result["file"])
         self._detail_panel.show_result(result)
 
-    def _export_csv(self) -> None:
-        """Write the current scan results to a CSV file chosen by the user."""
+    def _export_pdf(self) -> None:
+        """Generate a forensic PDF report from the current scan results."""
         if not self._results:
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Results as CSV",
-            "scan_results.csv",
-            "CSV Files (*.csv);;All Files (*)",
+            self, "Export Forensic Report",
+            "forensic_report.pdf",
+            "PDF Files (*.pdf);;All Files (*)",
         )
         if not path:
             return
 
-        import csv, os
+        self._export_btn.setEnabled(False)
+        self._export_btn.setText("◌  GENERATING…")
+
         try:
-            with open(path, "w", newline="", encoding="utf-8") as fh:
-                writer = csv.writer(fh)
-                # Header
-                writer.writerow([
-                    "filename", "label", "probability",
-                    "estimated_payload_bpp", "model_consensus",
-                    "entropy",
-                    "glcm_contrast", "glcm_correlation",
-                    "glcm_energy", "glcm_homogeneity",
-                    "model_prob_0.1", "model_prob_0.2", "model_prob_0.3",
-                    "model_prob_0.4", "model_prob_0.5",
-                    "width", "height",
-                ])
-                for r in self._results:
-                    mp = r.get("model_probabilities", {})
-                    glcm = r.get("glcm", [0, 0, 0, 0])
-                    writer.writerow([
-                        os.path.basename(r["file"]),
-                        r["label"],
-                        f"{r['probability']:.6f}",
-                        r.get("estimated_payload", ""),
-                        r.get("consensus", ""),
-                        f"{r.get('entropy', ''):.6f}",
-                        f"{glcm[0]:.6f}", f"{glcm[1]:.6f}",
-                        f"{glcm[2]:.6f}", f"{glcm[3]:.6f}",
-                        f"{mp.get('0.1', ''):.6f}" if mp.get("0.1") is not None else "",
-                        f"{mp.get('0.2', ''):.6f}" if mp.get("0.2") is not None else "",
-                        f"{mp.get('0.3', ''):.6f}" if mp.get("0.3") is not None else "",
-                        f"{mp.get('0.4', ''):.6f}" if mp.get("0.4") is not None else "",
-                        f"{mp.get('0.5', ''):.6f}" if mp.get("0.5") is not None else "",
-                        r.get("width", ""),
-                        r.get("height", ""),
-                    ])
+            from src.gui.report import build_report
+            build_report(
+                results=self._results,
+                output_path=path,
+                scan_folder=getattr(self, "_last_scan_folder", ""),
+            )
+            import os
             n = len(self._results)
             self._status_bar.showMessage(
-                f"Exported {n} result{'s' if n != 1 else ''} → {os.path.basename(path)}"
+                f"Report exported — {n} image{'s' if n != 1 else ''} "
+                f"→ {os.path.basename(path)}"
             )
         except Exception as exc:
             self._status_bar.showMessage(f"Export failed: {exc}")
+        finally:
+            self._export_btn.setEnabled(True)
+            self._export_btn.setText("↓  EXPORT PDF")
 
     # ── Helpers ──────────────────────────────────────────────────────
 
