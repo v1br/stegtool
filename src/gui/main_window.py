@@ -1,19 +1,3 @@
-"""
-MainWindow — application shell.
-
-Responsibilities
-----------------
-* Lay out the top-level UI: shared header + tabbed body.
-* Tab 0 (DETECT)  — folder scan with results list + detail panel.
-* Tab 1 (EMBED)   — single-image LSB embedding + side-by-side comparison + verdict.
-* Tab 2 (EXTRACT) — single-image LSB extraction + message display.
-* Orchestrate the scan flow (open dialog → spin up worker → handle results).
-* Update summary tiles and status bar.
-
-Widget implementation details live in src/gui/widgets/.
-Threading lives in src/gui/worker.py.
-"""
-
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QFileDialog, QLabel, QListWidget,
