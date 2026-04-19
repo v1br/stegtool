@@ -6,7 +6,6 @@ import random
 class LSBEmbedder:
 
     def preprocess_image(self, path):
-
         img = cv2.imread(path)
 
         if img is None:
@@ -17,7 +16,8 @@ class LSBEmbedder:
 
         img = cv2.resize(img, (512, 512), interpolation=cv2.INTER_AREA)
 
-        return img
+        # Ensure correct dtype for bit operations
+        return img.astype(np.uint8)
 
     # -----------------------------------------
 
@@ -27,12 +27,9 @@ class LSBEmbedder:
     # -----------------------------------------
 
     def text_to_bits(self, text):
-
         bits = []
-
         for c in text:
             bits.extend([int(b) for b in format(ord(c), "08b")])
-
         return bits
 
     # -----------------------------------------
@@ -43,10 +40,12 @@ class LSBEmbedder:
 
         pixels = img.flatten()
 
+        # Ensure capacity is an integer
         capacity = int(len(pixels) * payload_bpp)
 
         message_bits = self.text_to_bits(text)
 
+        # Store message length (32 bits)
         length_bits = self.int_to_bits(len(message_bits), 32)
 
         payload = length_bits + message_bits
@@ -54,17 +53,20 @@ class LSBEmbedder:
         if len(payload) > capacity:
             raise RuntimeError("Message too large for selected payload")
 
+        # Fill remaining capacity with random bits
         remaining = capacity - len(payload)
-
         payload += [random.randint(0, 1) for _ in range(remaining)]
 
-        # embed sequentially
+        # Safe bitwise embedding
         for i, bit in enumerate(payload):
-            pixels[i] = (pixels[i] & ~1) | bit
+            p = int(pixels[i])                 # convert to Python int
+            pixels[i] = (p & 0xFE) | int(bit)  # clear LSB, set new bit
 
-        stego = pixels.reshape(img.shape)
+        # Ensure correct dtype before saving
+        stego = pixels.reshape(img.shape).astype(np.uint8)
 
-        cv2.imwrite(output_path, stego)
+        if not cv2.imwrite(output_path, stego):
+            raise RuntimeError("Failed to save stego image")
 
         print("Stego image saved:", output_path)
 
